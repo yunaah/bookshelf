@@ -27,7 +27,6 @@ void showTopSnackBar(String message, {Color color = Colors.green}) {
 
   messenger.removeCurrentSnackBar();
   
-  // Hitung tinggi layar agar notif pas di atas
   final screenHeight = MediaQuery.of(context).size.height;
 
   messenger.showSnackBar(
@@ -43,7 +42,7 @@ void showTopSnackBar(String message, {Color color = Colors.green}) {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: EdgeInsets.only(
-        bottom: screenHeight - 150, // Posisi di atas
+        bottom: screenHeight - 150, 
         left: 20, 
         right: 20
       ),
@@ -111,7 +110,20 @@ class _MainPageState extends State<MainPage> {
     ];
 
     return Scaffold(
-      body: pages[_selectedIndex],
+      // --- PERBAIKAN UTAMA: ValueListenableBuilder + IndexedStack ---
+      // Kita bungkus IndexedStack dengan Listener. 
+      // Jadi ketika data.dart selesai loading (bookListNotifier berubah), 
+      // seluruh halaman akan direfresh otomatis. Rak & Status PASTI muncul.
+      body: ValueListenableBuilder(
+        valueListenable: Data.bookListNotifier,
+        builder: (context, _, __) {
+          return IndexedStack(
+            index: _selectedIndex,
+            children: pages, // Pake 'pages' bukan 'pagbodyes' (Typo Fixed)
+          );
+        }
+      ),
+      
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           await showModalBottomSheet(
@@ -120,9 +132,8 @@ class _MainPageState extends State<MainPage> {
             backgroundColor: Colors.transparent,
             builder: (context) => const AddBookModal(),
           );
-          // Refresh data carousel setelah modal tutup (Grid otomatis refresh via Listener)
+          // Fetch data lagi untuk memastikan sinkronisasi
           await Data.fetchData();
-          setState(() {}); 
         },
         backgroundColor: Colors.blue[600],
         shape: const CircleBorder(),
@@ -178,7 +189,7 @@ class _HomePageState extends State<HomePage> {
               Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))), const SizedBox(height: 20),
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("Update Progress", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold)), Text("${book['total_pages']} Pages", style: GoogleFonts.poppins(color: Colors.grey[500]))]), const SizedBox(height: 24),
               Row(children: [ClipRRect(borderRadius: BorderRadius.circular(12), child: CachedNetworkImage(imageUrl: book['cover'], width: 60, height: 90, fit: BoxFit.cover, errorWidget: (context, url, error) => const Icon(Icons.book, color: Colors.grey))), const SizedBox(width: 20), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(book['title'], maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text("Halaman saat ini", style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])), Row(children: [SizedBox(width: 80, child: TextField(controller: pageController, keyboardType: TextInputType.number, style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.blue[800]), decoration: const InputDecoration(border: InputBorder.none, isDense: true))), Text("/ ${book['total_pages']}", style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[400]))]), Container(height: 2, color: Colors.blue[100])]))]), const SizedBox(height: 32),
-              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () async { int? newPage = int.tryParse(pageController.text); if (newPage != null && newPage <= book['total_pages']) { Navigator.pop(context); bool success = await Data.updateProgress(book['id'], newPage); if (success) { setState(() {}); showTopSnackBar("Progress berhasil diupdate!"); } else { showTopSnackBar("Gagal konek ke server", color: Colors.red); }}}, style: ElevatedButton.styleFrom(backgroundColor: Colors.black87, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text("Update", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)))),
+              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () async { int? newPage = int.tryParse(pageController.text); if (newPage != null && newPage <= book['total_pages']) { Navigator.pop(context); bool success = await Data.updateProgress(book['id'], newPage); if (success) { showTopSnackBar("Progress berhasil diupdate!"); } else { showTopSnackBar("Gagal konek ke server", color: Colors.red); }}}, style: ElevatedButton.styleFrom(backgroundColor: Colors.black87, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text("Update", style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)))),
               const SizedBox(height: 12), Center(child: TextButton(onPressed: () => Navigator.pop(context), child: Text("Batal", style: GoogleFonts.poppins(color: Colors.grey[600]))))
             ]));
       });
@@ -193,15 +204,12 @@ class _HomePageState extends State<HomePage> {
               Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_buildStatusButton(context, book, "Wishlist", "wishlist", LucideIcons.bookmark, Colors.orange), _buildStatusButton(context, book, "Reading", "reading", LucideIcons.bookOpen, Colors.blue), _buildStatusButton(context, book, "Finished", "completed", LucideIcons.checkCircle, Colors.green)]), const SizedBox(height: 24),
               Text("Pindah Rak (Genre)", style: GoogleFonts.poppins(color: Colors.grey, fontSize: 12)), const SizedBox(height: 8),
               Data.shelfOptions.isEmpty ? const Text("Belum ada rak.", style: TextStyle(color: Colors.red, fontSize: 12)) : Wrap(spacing: 8, runSpacing: 8, children: Data.shelfOptions.map((shelf) => _buildShelfChip(context, book, shelf)).toList()), const SizedBox(height: 32),
-              SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () { showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text("Hapus Buku?"), content: const Text("Buku ini akan dihapus permanen."), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")), TextButton(onPressed: () async { Navigator.pop(ctx); Navigator.pop(context); bool success = await Data.deleteBook(book['id']); if(success) { setState(() {}); showTopSnackBar("Buku berhasil dihapus", color: Colors.red); }}, child: const Text("Hapus", style: TextStyle(color: Colors.red)))])); }, icon: const Icon(LucideIcons.trash2, color: Colors.red), label: Text("Hapus Buku Ini", style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.bold)), style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))))
+              SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: () { showDialog(context: context, builder: (ctx) => AlertDialog(title: const Text("Hapus Buku?"), content: const Text("Buku ini akan dihapus permanen."), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")), TextButton(onPressed: () async { Navigator.pop(ctx); Navigator.pop(context); bool success = await Data.deleteBook(book['id']); if(success) { showTopSnackBar("Buku berhasil dihapus", color: Colors.red); }}, child: const Text("Hapus", style: TextStyle(color: Colors.red)))])); }, icon: const Icon(LucideIcons.trash2, color: Colors.red), label: Text("Hapus Buku Ini", style: GoogleFonts.poppins(color: Colors.red, fontWeight: FontWeight.bold)), style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))))
             ])));
       });
   }
-
-  Widget _buildStatusButton(BuildContext context, Map book, String label, String statusKey, IconData icon, Color color) {
-    bool isSelected = book['status'] == statusKey; return GestureDetector(onTap: () async { Navigator.pop(context); if (!isSelected) { await Data.changeBookStatus(book['id'], statusKey); setState(() {}); showTopSnackBar("Status: $label"); } }, child: Column(children: [Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: isSelected ? color : color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: isSelected ? Colors.white : color)), const SizedBox(height: 4), Text(label, style: GoogleFonts.poppins(fontSize: 10, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal))]));
-  }
-  Widget _buildShelfChip(BuildContext context, Map book, String shelfName) { bool isSelected = book['shelf'] == shelfName; return ActionChip(label: Text(shelfName), backgroundColor: isSelected ? Colors.black87 : Colors.grey[100], labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black), onPressed: () async { Navigator.pop(context); if (!isSelected) { await Data.changeBookShelf(book['id'], shelfName); setState(() {}); showTopSnackBar("Dipindah ke rak $shelfName"); }}); }
+  Widget _buildStatusButton(BuildContext context, Map book, String label, String statusKey, IconData icon, Color color) { bool isSelected = book['status'] == statusKey; return GestureDetector(onTap: () async { Navigator.pop(context); if (!isSelected) { await Data.changeBookStatus(book['id'], statusKey); showTopSnackBar("Status diperbarui menjadi $label"); } }, child: Column(children: [Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: isSelected ? color : color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: isSelected ? Colors.white : color)), const SizedBox(height: 4), Text(label, style: GoogleFonts.poppins(fontSize: 10, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal))])); }
+  Widget _buildShelfChip(BuildContext context, Map book, String shelfName) { bool isSelected = book['shelf'] == shelfName; return ActionChip(label: Text(shelfName), backgroundColor: isSelected ? Colors.black87 : Colors.grey[100], labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black), onPressed: () async { Navigator.pop(context); if (!isSelected) { await Data.changeBookShelf(book['id'], shelfName); showTopSnackBar("Dipindah ke rak $shelfName"); }}); }
 
   @override
   Widget build(BuildContext context) {
@@ -215,13 +223,80 @@ class _HomePageState extends State<HomePage> {
           children: [
             Padding(padding: const EdgeInsets.all(24.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text("Hi, Reader! 👋", style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[800])), Text("Mau baca apa hari ini?", style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[500]))])),
             
-            // --- CAROUSEL BUKU (Slider) ---
-            if (Data.readingList.isNotEmpty) ...[
-              Padding(padding: const EdgeInsets.symmetric(horizontal: 24.0), child: Text("Sedang Dibaca (${Data.readingList.length})", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]))), const SizedBox(height: 16), 
-              SizedBox(height: 180, child: PageView.builder(controller: _pageController, itemCount: Data.readingList.length, itemBuilder: (context, index) { final book = Data.readingList[index]; return GestureDetector(onTap: () => _showUpdateModal(context, book), child: Container(margin: const EdgeInsets.symmetric(horizontal: 8), padding: const EdgeInsets.all(16), decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF2563EB), Color(0xFF4338CA)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))]), child: Row(children: [ClipRRect(borderRadius: BorderRadius.circular(8), child: CachedNetworkImage(imageUrl: book['cover'], width: 80, height: 110, fit: BoxFit.cover, errorWidget: (context, url, error) => const Icon(Icons.book, color: Colors.white))), const SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [Text(book['title'], maxLines: 2, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)), Text(book['author'], maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.poppins(fontSize: 12, color: Colors.blue[100])), const SizedBox(height: 12), LinearPercentIndicator(padding: EdgeInsets.zero, lineHeight: 6.0, percent: book['progress'] ?? 0.0, backgroundColor: Colors.blue[900]!.withOpacity(0.3), progressColor: Colors.blue[200], barRadius: const Radius.circular(10)), const SizedBox(height: 4), Align(alignment: Alignment.centerRight, child: Text("${((book['progress'] ?? 0.0) * 100).toInt()}% Selesai", style: GoogleFonts.poppins(fontSize: 10, color: Colors.blue[100])))]))])));})), const SizedBox(height: 32)
-            ],
+            // --- CAROUSEL REAKTIF (SLIDER) ---
+            ValueListenableBuilder<List<Map<String, dynamic>>>(
+              valueListenable: Data.readingListNotifier, // Mendengarkan perubahan data reading
+              builder: (context, readingList, _) {
+                if (readingList.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 24.0), child: Text("Sedang Dibaca (${readingList.length})", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]))),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 180, 
+                      child: PageView.builder(
+                        controller: _pageController,
+                        itemCount: readingList.length,
+                        itemBuilder: (context, index) {
+                          final book = readingList[index];
+                          return GestureDetector(
+                            onTap: () => _showUpdateModal(context, book),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(colors: [Color(0xFF2563EB), Color(0xFF4338CA)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))],
+                              ),
+                              child: Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: CachedNetworkImage(
+                                      imageUrl: book['cover'], 
+                                      width: 80, height: 110, fit: BoxFit.cover,
+                                      errorWidget: (context, url, error) => const Icon(Icons.book, color: Colors.white),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(book['title'],
+                                            maxLines: 2, overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                                        Text(book['author'],
+                                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.poppins(fontSize: 12, color: Colors.blue[100])),
+                                        const SizedBox(height: 12),
+                                        LinearPercentIndicator(
+                                          padding: EdgeInsets.zero, lineHeight: 6.0, 
+                                          percent: book['progress'] ?? 0.0, 
+                                          backgroundColor: Colors.blue[900]!.withOpacity(0.3), progressColor: Colors.blue[200], barRadius: const Radius.circular(10),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Align(alignment: Alignment.centerRight, child: Text("${((book['progress'] ?? 0.0) * 100).toInt()}% Selesai", style: GoogleFonts.poppins(fontSize: 10, color: Colors.blue[100]))),
+                                      ],
+                                    ),
+                                  )
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                );
+              }
+            ),
             
-            // --- GRID KOLEKSI BUKU (AUTO REFRESH via ValueListenableBuilder) ---
+            // --- GRID KOLEKSI REAKTIF ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
@@ -229,7 +304,6 @@ class _HomePageState extends State<HomePage> {
                   Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text("Koleksi Buku", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800])), Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle), child: Icon(LucideIcons.search, size: 18, color: Colors.grey[600]))]),
                   const SizedBox(height: 16),
                   
-                  // PENTING: ValueListenableBuilder agar update otomatis
                   ValueListenableBuilder<List<Map<String, dynamic>>>(
                     valueListenable: Data.bookListNotifier,
                     builder: (context, bookList, _) {
@@ -300,7 +374,6 @@ class _AddBookModalState extends State<AddBookModal> {
       else { showErrorDialog(context, result); }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Container(padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 24), decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -311,7 +384,9 @@ class _AddBookModalState extends State<AddBookModal> {
              const SizedBox(height: 16), SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: _isLoading ? null : _searchIsbn, icon: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(LucideIcons.scanLine, color: Colors.white), label: Text(_isLoading ? "Mencari..." : "Cari Data Buku", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[600], padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))))),
              const SizedBox(height: 12), Center(child: TextButton(onPressed: () => setState(() { _isManual = true; _selectedShelf = Data.shelfOptions.isNotEmpty ? Data.shelfOptions[0] : null; }), child: const Text("Input Manual Saja")))
           ] else ...[
-             Row(children: [GestureDetector(onTap: _pickImage, child: Container(width: 80, height: 120, decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8), image: _imageFile != null ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover) : (_coverUrl.isNotEmpty ? DecorationImage(image: NetworkImage(_coverUrl), fit: BoxFit.cover) : null)), child: (_imageFile == null && _coverUrl.isEmpty) ? const Icon(Icons.add_a_photo, color: Colors.grey) : null)), const SizedBox(width: 16), Expanded(child: Column(children: [TextField(controller: _isbnController, decoration: const InputDecoration(labelText: "ISBN", isDense: true), keyboardType: TextInputType.number), TextField(controller: _titleController, decoration: const InputDecoration(labelText: "Judul Buku", isDense: true)), TextField(controller: _authorController, decoration: const InputDecoration(labelText: "Penulis", isDense: true)), TextField(controller: _pagesController, decoration: const InputDecoration(labelText: "Total Halaman", isDense: true), keyboardType: TextInputType.number)]))]), const SizedBox(height: 16),
+             Row(children: [GestureDetector(onTap: _pickImage, child: Container(width: 80, height: 120, decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8), image: _imageFile != null ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover) : (_coverUrl.isNotEmpty ? DecorationImage(image: NetworkImage(_coverUrl), fit: BoxFit.cover) : null)), child: (_imageFile == null && _coverUrl.isEmpty) ? const Icon(Icons.add_a_photo, color: Colors.grey) : null)), const SizedBox(width: 16), Expanded(child: Column(children: [
+                       TextField(controller: _isbnController, decoration: const InputDecoration(labelText: "ISBN", isDense: true), keyboardType: TextInputType.number),
+                       TextField(controller: _titleController, decoration: const InputDecoration(labelText: "Judul Buku", isDense: true)), TextField(controller: _authorController, decoration: const InputDecoration(labelText: "Penulis", isDense: true)), TextField(controller: _pagesController, decoration: const InputDecoration(labelText: "Total Halaman", isDense: true), keyboardType: TextInputType.number)]))]), const SizedBox(height: 16),
              Data.shelfOptions.isEmpty ? const Text("Belum ada rak.", style: TextStyle(color: Colors.red)) : DropdownButtonFormField<String>(value: _selectedShelf, decoration: const InputDecoration(labelText: "Pilih Rak", isDense: true, border: OutlineInputBorder()), items: Data.shelfOptions.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value, style: GoogleFonts.poppins()))).toList(), onChanged: (newValue) => setState(() => _selectedShelf = newValue)), const SizedBox(height: 24),
              SizedBox(width: double.infinity, child: ElevatedButton(onPressed: _isLoading ? null : _saveBook, style: ElevatedButton.styleFrom(backgroundColor: Colors.black87, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: Text("Simpan ke Rak", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.white))))
           ]

@@ -2,64 +2,66 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'data.dart'; // Import Data Service
+import 'data.dart'; 
 
 class StatusPage extends StatelessWidget {
   const StatusPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // 1. FILTER DATA BERDASARKAN STATUS
-    // Kita ambil dari Data.homeBookList yang sudah ditarik dari Laravel
-    final wishlistBooks = Data.homeBookList.where((b) => b['status'] == 'wishlist').toList();
-    final readingBooks = Data.homeBookList.where((b) => b['status'] == 'reading').toList();
-    final finishedBooks = Data.homeBookList.where((b) => b['status'] == 'completed').toList();
+    // ANTENA: Mendengarkan perubahan data buku
+    return ValueListenableBuilder<List<Map<String, dynamic>>>(
+      valueListenable: Data.bookListNotifier,
+      builder: (context, bookList, _) {
+        
+        // Filter data langsung dari 'bookList' yang dinamis
+        final wishlistBooks = bookList.where((b) => b['status'] == 'wishlist').toList();
+        final readingBooks = bookList.where((b) => b['status'] == 'reading').toList();
+        final finishedBooks = bookList.where((b) => b['status'] == 'completed').toList();
 
-    return DefaultTabController(
-      length: 3, // Ada 3 Tab
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Text(
-                "Status", 
-                style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[800])
-              ),
-            ),
-            
-            // Tab Bar Navigation
-            TabBar(
-              labelColor: Colors.blue[600],
-              unselectedLabelColor: Colors.grey[400],
-              indicatorColor: Colors.blue[600],
-              indicatorWeight: 3,
-              labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
-              tabs: const [
-                Tab(text: "To be Read"),
-                Tab(text: "Current Read"),
-                Tab(text: "Finised"),
+        return DefaultTabController(
+          length: 3,
+          child: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Text(
+                    "Status Bacaan", 
+                    style: GoogleFonts.poppins(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.grey[800])
+                  ),
+                ),
+                
+                TabBar(
+                  labelColor: Colors.blue[600],
+                  unselectedLabelColor: Colors.grey[400],
+                  indicatorColor: Colors.blue[600],
+                  indicatorWeight: 3,
+                  labelStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 14),
+                  tabs: const [
+                    Tab(text: "Wishlist"),
+                    Tab(text: "Reading"),
+                    Tab(text: "Selesai"),
+                  ],
+                ),
+                
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _buildBookList(wishlistBooks, "Belum ada buku yang ingin dibaca", Colors.orange),
+                      _buildBookList(readingBooks, "Tidak ada buku yang sedang dibaca", Colors.blue),
+                      _buildBookList(finishedBooks, "Belum ada buku yang tamat", Colors.green),
+                    ],
+                  ),
+                ),
               ],
             ),
-            
-            // Isi Konten Tab
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _buildBookList(wishlistBooks, "Belum ada buku yang ingin dibaca", Colors.orange),
-                  _buildBookList(readingBooks, "Tidak ada buku yang sedang dibaca", Colors.blue),
-                  _buildBookList(finishedBooks, "Belum ada buku yang tamat", Colors.green),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      }
     );
   }
 
-  // Widget Helper untuk membuat List Buku
   Widget _buildBookList(List<Map<String, dynamic>> books, String emptyMsg, Color badgeColor) {
     if (books.isEmpty) {
       return Center(
@@ -96,7 +98,6 @@ class StatusPage extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Cover Buku
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: CachedNetworkImage(
@@ -107,8 +108,6 @@ class StatusPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              
-              // Info Buku
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -126,8 +125,6 @@ class StatusPage extends StatelessWidget {
                       style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500])
                     ),
                     const SizedBox(height: 8),
-                    
-                    // Info Rak & Halaman
                     Row(
                       children: [
                         Container(
@@ -137,7 +134,7 @@ class StatusPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(6)
                           ),
                           child: Text(
-                            book['shelf'], // Menampilkan Genre Rak
+                            book['shelf'], 
                             style: GoogleFonts.poppins(fontSize: 10, color: Colors.grey[600])
                           ),
                         ),
@@ -152,8 +149,6 @@ class StatusPage extends StatelessWidget {
                   ],
                 ),
               ),
-              
-              // Indikator Status
               Icon(
                 book['status'] == 'completed' ? LucideIcons.checkCircle : (book['status'] == 'reading' ? LucideIcons.bookOpen : LucideIcons.bookmark),
                 color: badgeColor,

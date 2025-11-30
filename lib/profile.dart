@@ -8,98 +8,105 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Hitung statistik sederhana dari data yang ada
-    int totalBooks = Data.homeBookList.length;
-    int finishedBooks = Data.homeBookList.where((b) => b['status'] == 'completed').length;
-    int readingBooks = Data.homeBookList.where((b) => b['status'] == 'reading').length;
+    // PASANG ANTENA DISINI
+    return ValueListenableBuilder<List<Map<String, dynamic>>>(
+      valueListenable: Data.bookListNotifier, // Mendengarkan perubahan data buku
+      builder: (context, bookList, _) {
+        
+        // Hitung statistik langsung dari data terbaru (bookList)
+        int totalBooks = bookList.length;
+        int finishedBooks = bookList.where((b) => b['status'] == 'completed').length;
+        int readingBooks = bookList.where((b) => b['status'] == 'reading').length;
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // HEADER PROFIL
-          Container(
-            padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
-            decoration: const BoxDecoration(
-              color: Color(0xFF2563EB),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-            ),
-            child: Column(
-              children: [
-                Row(
+        return SingleChildScrollView(
+          child: Column(
+            children: [
+              // HEADER PROFIL
+              Container(
+                padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF2563EB),
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+                ),
+                child: Column(
                   children: [
-                    Container(
-                      width: 64, height: 64, 
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle), 
-                      child: const Center(child: Text("JD", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)))
-                    ),
-                    const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
-                        Text("John Doe", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                        Text("Bergabung sejak 2023", style: GoogleFonts.poppins(fontSize: 12, color: Colors.blue.shade100)),
+                        Container(
+                          width: 64, height: 64, 
+                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle), 
+                          child: const Center(child: Text("JD", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)))
+                        ),
+                        const SizedBox(width: 16),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text("John Doe", style: GoogleFonts.poppins(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                            Text("Bergabung sejak 2023", style: GoogleFonts.poppins(fontSize: 12, color: Colors.blue.shade100)),
+                          ],
+                        )
                       ],
+                    ),
+                    const SizedBox(height: 30),
+                    
+                    // STATISTIK SEDERHANA (ANGKANYA SEKARANG DINAMIS)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildStat(totalBooks.toString(), "Total Buku"),
+                          Container(width: 1, height: 30, color: Colors.blue.shade400),
+                          _buildStat(finishedBooks.toString(), "Selesai"),
+                          Container(width: 1, height: 30, color: Colors.blue.shade400),
+                          _buildStat(readingBooks.toString(), "Sedang Baca"),
+                        ],
+                      ),
                     )
                   ],
                 ),
-                const SizedBox(height: 30),
-                
-                // STATISTIK SEDERHANA
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStat(totalBooks.toString(), "Total Buku"),
-                      Container(width: 1, height: 30, color: Colors.blue.shade400),
-                      _buildStat(finishedBooks.toString(), "Selesai"),
-                      Container(width: 1, height: 30, color: Colors.blue.shade400),
-                      _buildStat(readingBooks.toString(), "Sedang Baca"),
-                    ],
-                  ),
-                )
-              ],
-            ),
-          ),
+              ),
 
-          // MENU OPSI (Tanpa Kalender)
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Pengaturan Akun", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800])),
-                const SizedBox(height: 16),
-                
-                _buildMenuButton("Edit Profil", LucideIcons.userCog),
-                const SizedBox(height: 12),
-                _buildMenuButton("Notifikasi", LucideIcons.bell),
-                const SizedBox(height: 12),
-                _buildMenuButton("Bahasa", LucideIcons.languages),
-                const SizedBox(height: 12),
-                _buildMenuButton("Tentang Aplikasi", LucideIcons.info),
-                
-                const SizedBox(height: 40),
-                
-                SizedBox(
-                  width: double.infinity,
-                  child: TextButton(
-                    onPressed: () {},
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.red.shade50,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              // MENU OPSI
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Pengaturan Akun", style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+                    const SizedBox(height: 16),
+                    
+                    _buildMenuButton("Edit Profil", LucideIcons.userCog),
+                    const SizedBox(height: 12),
+                    _buildMenuButton("Notifikasi", LucideIcons.bell),
+                    const SizedBox(height: 12),
+                    _buildMenuButton("Bahasa", LucideIcons.languages),
+                    const SizedBox(height: 12),
+                    _buildMenuButton("Tentang Aplikasi", LucideIcons.info),
+                    
+                    const SizedBox(height: 40),
+                    
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () {},
+                        style: TextButton.styleFrom(
+                          backgroundColor: Colors.red.shade50,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: Text("Logout", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.red)),
+                      ),
                     ),
-                    child: Text("Logout", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, color: Colors.red)),
-                  ),
+                    const SizedBox(height: 50),
+                  ],
                 ),
-                const SizedBox(height: 50),
-              ],
-            ),
-          )
-        ],
-      ),
+              )
+            ],
+          ),
+        );
+      }
     );
   }
 

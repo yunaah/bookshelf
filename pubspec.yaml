@@ -40,6 +40,7 @@ dependencies:
   cached_network_image: ^3.4.1
   table_calendar: ^3.2.0
   intl: ^0.20.2
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:
